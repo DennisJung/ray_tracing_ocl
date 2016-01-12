@@ -1,0 +1,10 @@
+*.sdf
+*.opensdf
+*.suo
+*.pro.user
+*.vcxproj
+*.filters
+*.swp
+*.bak
+*.zip
+Debug/
