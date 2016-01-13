@@ -165,19 +165,14 @@ static bool RectangleLightIntersect(RectangleLight tmpRectangle, int index,Inter
 	return true;
 }
 
-static bool PlaneIntersect(Plane tmpPlane, Intersection* tmpIntersection, __global unsigned int* pixels, unsigned int x, unsigned int y, unsigned int width, int type)
+static bool PlaneIntersect(Plane tmpPlane, Intersection* tmpIntersection)
 {
 	float nDotD = vdot(tmpPlane.m_normal, tmpIntersection->m_ray.m_direction);
-	//pixels[y*width+x] = tmpIntersection->m_ray.m_direction.x * 100;
-	if (nDotD >= 0.0f)
+;	if (nDotD >= 0.0f)
 	{
 		return false;
 	}
 	
-	if(type == 1)
-	{
-		//pixels[y*width+x] = 12; 
-	}
 
 	float t = (vdot(tmpPlane.m_pos, tmpPlane.m_normal) - 
 		vdot(tmpIntersection->m_ray.m_origin, tmpPlane.m_normal)) / 
@@ -188,10 +183,6 @@ static bool PlaneIntersect(Plane tmpPlane, Intersection* tmpIntersection, __glob
 		return false; 
 	}
 	
-	if(type == 1)
-	{
-		//pixels[y*width+x] = 13; 
-	}
 
 	tmpIntersection->m_t = t;
 	tmpIntersection->m_normal = tmpPlane.m_normal;
@@ -204,19 +195,14 @@ static bool PlaneIntersect(Plane tmpPlane, Intersection* tmpIntersection, __glob
 static bool intersect(Intersection* tmpIntersection, 
 	OCL_CONSTANT_BUFFER const RectangleLight* lights,
 	const unsigned int lightcount, OCL_CONSTANT_BUFFER const Plane* planes,
-	const unsigned int planecount, __global unsigned int* pixels, unsigned int x, unsigned int y, unsigned int width, int type)
+	const unsigned int planecount)
 {
 	bool intersectedAny = false;
 	int i;
 
-	if(type == 1)
-	{
-		//pixels[y*width+x] = 10; 
-	}
-
 	for(i = 0; i<planecount; i++)
 	{
-		if(PlaneIntersect(planes[i], tmpIntersection, pixels, x, y, width, type) )
+		if(PlaneIntersect(planes[i], tmpIntersection) )
 		{
 			intersectedAny = true;
 			
@@ -229,10 +215,6 @@ static bool intersect(Intersection* tmpIntersection,
 		if (RectangleLightIntersect(lights[i], i, tmpIntersection))
 		{
 			intersectedAny = true;
-			if(type == 1)
-			{
-				//pixels[y*width+x] = 21; 
-			}
 		}
 		
 	}
@@ -241,7 +223,7 @@ static bool intersect(Intersection* tmpIntersection,
 }
 
 static bool sampleSurface(RectangleLight tmpRectangle, float u1, float u2,
-	const Point* referencePosition, Point* outPosition, Vector* outNormal, __global unsigned int* pixels, unsigned int x, unsigned int y, unsigned int width)
+	const Point* referencePosition, Point* outPosition, Vector* outNormal)
 {
 	Point tmp;
 	vxcross(tmp, tmpRectangle.m_side1, tmpRectangle.m_side2); vnorm(tmp); vassign(*outNormal, tmp);
@@ -296,14 +278,13 @@ __kernel void ray_cal(OCL_CONSTANT_BUFFER const RectangleLight* lights,
 		vclr(intersection.m_emitted);
 		vclr(intersection.m_normal);
 		intersection.lastindex = -1;
-		if(intersect(&intersection, lights, lightcount, planes, planecount, pixels, x, y, width,0))
+		if(intersect(&intersection, lights, lightcount, planes, planecount))
 		{
 			vadd(pixelColor, pixelColor, intersection.m_emitted);
 
 			Point position;
 			pcal(position, intersection.m_t, intersection.m_ray.m_origin, 
 				intersection.m_ray.m_direction);
-			//pixels[y*width+x] = intersection.m_emitted.x; 
 			
 			for(j = 0; j<lightcount; j++)
 			{
@@ -311,7 +292,7 @@ __kernel void ray_cal(OCL_CONSTANT_BUFFER const RectangleLight* lights,
 				Vector lightNormal;
 
 				sampleSurface(lights[j], GetRandom(&seed0, &seed1), GetRandom(&seed0, &seed1),
-							&position, &lightPoint, &lightNormal, pixels, x, y, width);
+							&position, &lightPoint, &lightNormal);
 				
 				
 				Vector toLight; vsub(toLight, lightPoint, position);
@@ -324,7 +305,7 @@ __kernel void ray_cal(OCL_CONSTANT_BUFFER const RectangleLight* lights,
 				vclr(shadowIntersection.m_emitted);
 				vclr(shadowIntersection.m_normal);
 				shadowIntersection.lastindex = -1;
-				bool intersected = intersect(&shadowIntersection, lights, lightcount, planes, planecount, pixels, x, y, width, 1);
+				bool intersected = intersect(&shadowIntersection, lights, lightcount, planes, planecount);
 
 				if(!intersected || (shadowIntersection.lastindex == j))
 				{
@@ -334,8 +315,6 @@ __kernel void ray_cal(OCL_CONSTANT_BUFFER const RectangleLight* lights,
 					vmul(tmp, intersection.m_color, tmp);
 					vsmul(tmp, lightAttenuation, tmp);
 				
-					//pixels[y*width+x] = 10; 	
-					//pixels[y*width+x] = pixelColor.x*100;
 					vadd(pixelColor, pixelColor, tmp);
 				}
 
