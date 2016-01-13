@@ -2,7 +2,8 @@
 
 I compare ray tracing(using OpenCL) and ray tracing(using just C)
 
-**result :** 
+**result :**  
+  
 ![result](out.png "Sample output")
 
 ---
